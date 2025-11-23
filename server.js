@@ -11,15 +11,20 @@ app.get('/proxy', async (req, res) => {
   
   try {
     const response = await fetch(url);
-    const data = await response.text();
+    let data = await response.text();
     
-    // Get content type
+    // AGGRESSIVE: Strip frame-busting scripts and meta tags
+    data = data.replace(/<meta[^>]*http-equiv=["']?X-Frame-Options["']?[^>]*>/gi, '');
+    data = data.replace(/<meta[^>]*http-equiv=["']?Content-Security-Policy["']?[^>]*>/gi, '');
+    data = data.replace(/if\s*\(\s*top\s*!=\s*self\s*\)/gi, 'if(false)');
+    data = data.replace(/if\s*\(\s*top\s*!==\s*self\s*\)/gi, 'if(false)');
+    
     const contentType = response.headers.get('content-type') || 'text/html';
     
-    // Set headers WITHOUT frame-blocking ones
-    res.setHeader('Content-Type', contentType);
     res.setHeader('Access-Control-Allow-Origin', '*');
-    // DO NOT copy X-Frame-Options or CSP headers
+    res.setHeader('Content-Type', contentType);
+    res.removeHeader('X-Frame-Options');
+    res.removeHeader('Content-Security-Policy');
     
     res.send(data);
   } catch (error) {
